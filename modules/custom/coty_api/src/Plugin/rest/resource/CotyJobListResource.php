@@ -7,28 +7,25 @@ use Drupal\rest\ResourceResponse;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Drupal\node\Entity\Node;
-use Drupal\node\NodeInterface;
+use \Drupal\node\NodeInterface;
 
 /**
  * Provides a resource for database watchdog log entries.
  *
  * @RestResource(
- *   id = "coty_api_jobs",
- *   label = @Translation("Coty Jobs API"),
+ *   id = "coty_api_job_list",
+ *   label = @Translation("Coty Job List API"),
  *   uri_paths = {
- *     "canonical" = "/coty_api/v1/job/{id}"
+ *     "canonical" = "/coty_api/v1/job-list"
  *   }
  * )
  */
-class CotyJobsResource extends ResourceBase {
+class CotyJobListResource extends ResourceBase {
 
   /**
    * Responds to GET requests.
    *
    * Returns a watchdog log entry for the specified ID.
-   *
-   * @param int $id
-   *   The ID of the watchdog log entry.
    *
    * @return \Drupal\rest\ResourceResponse
    *   The response containing the log entry.
@@ -38,19 +35,33 @@ class CotyJobsResource extends ResourceBase {
    * @throws \Symfony\Component\HttpKernel\Exception\BadRequestHttpException
    *   Thrown when no log entry was provided.
    */
-  public function get($id = NULL) {
-    if ($id) {
-      $node = Node::load($id);
-      // Make sure it's a node.
-      if ($node instanceof \Drupal\node\NodeInterface) {
-        $res = $this->getFormattedNode($node);
-        return new ResourceResponse($res);
-      }
+  public function get() {
+    $jobs = $this->getJobNode();
 
-      throw new NotFoundHttpException(t('Job with ID @id was not found', ['@id' => $id]));
+    if (!empty($jobs)) {
+      return new ResourceResponse($jobs);
     }
 
     throw new BadRequestHttpException(t('No job found'));
+  }
+
+  public function getJobNode() {
+    $nids = \Drupal::entityQuery('node')->condition('type','article')->execute();
+    // $query = \Drupal::entityQuery('node')
+    //   ->condition('status', 1)
+    //   ->condition('type', 'article')
+    //   ->execute();
+    // echo "<pre>";
+    // print_r($nids);
+    // print_r($query);
+    $nodes = Node::loadMultiple($nids);
+
+    $jobs = [];
+    foreach ($nodes as $node) {
+      $jobs[] = $this->getFormattedNode($node);
+    }
+
+    return $jobs;
   }
 
   public function getFormattedNode($node) {
